@@ -6,7 +6,7 @@ Vous pourrez retrouver ici :
 
 - Un fichier *requirements.txt* dans lequel il y a les éléments nécéssaires au fonctionnement du code.
 - Un fichier *Compte_rendu_TP2_AKKOUH.qmd*
-- Un fichier *Code_TP2.ipynb* contenant les codes mentionnés dans le *Compte_rendu_TP2_AKKOUH.qmd*
+- Un fichier *Rendu_TP2.ipynb* contenant les codes mentionnés dans le *Compte_rendu_TP2_AKKOUH.qmd*
 
   ## Compilation du fichier *Compte_rendu_TP2_AKKOUH.qmd* :
 
