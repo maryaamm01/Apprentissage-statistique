@@ -12,5 +12,6 @@ Vous pourrez retrouver ici :
 
   Il vous faudra vous assurer au préalable d'avoir installé *Quarto*. Ensuite, lorsque vous êtes dans le bon répertoire vous pourrez taper la commande suivante :
 
-  ```$ quarto render Compte_rendu_TP2_AKKOUH.qmd
-
+```
+  $ quarto render Compte_rendu_TP2_AKKOUH.qmd
+```
