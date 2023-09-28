@@ -1,0 +1,312 @@
+---
+title: "TP apprentissage statistique"
+author: "AKKOUH Maryam"
+format: pdf
+---
+
+# TP 2 : ARBRES
+
+## 1. CLASSIFICATION AVEC LES ARBRES
+
+Dans ce TP nous allons explorer les méthodes numériques pour la classification avec les arbres ainsi que les méthodes de choix de paramètres en utilisant la sélection de modèle, notamment avec la validation croisée.
+
+Nous allons pour cela considérer l'arbre de décision binaire *CART*. Il s'agit d'un algorithme de moyennage local par partition, dont la partition est construite par divisions successives au moyen d'hyperplans orthogonaux aux axes de $ℝ^p$. L'ensemble $ℝ^p$ constitue le noeud racine. Chaque division définit deux noeuds, les noeuds fils à gauche et à droite. Chacun sera : soit terminal, soit interne. Par le choix d'une variable explicative $X^{(j)}$ $(j=1,...,p)$ et d'une valeur seuil pour cette variable. Il faut, pour effectuer ce choix, maximiser une certaine fonction d'homogénéité $H$ qu'on aura défini au préalable.
+
+Dans le cadre de la régression, dans le but de mesurer l'homogénéité d'un modèle nous pouvons utiliser la variance. En effet, il s'agit d'un très bon indicateur, si la variance est élevée au sein des données cela veut dire que les données sont très éloignées les unes des autres. L'ensemble des données sera donc très hétérogène. A contrario, si la variance est faible, cela indique une homogénéité de l'ensemble des données.
+
+En discrimination binaire, nous allons plutôt considérer des fonctions comme l'indice de Gini par exemple.
+
+### Exploration du package *tree*
+
+Avec *scikit-learn* nous pouvons construire des arbres de décision grâce au package *tree*.
+
+En utilisant la fonction `rand_checkers`, on construit un échantillon de taille $n=456$ en faisant attention à bien équilibrer les classes.
+
+```{Python}
+
+data = rand_checkers(n1=114,n2=114,n3=114,n4=114,sigma=0.1)
+n_samples = len(data)
+X_train = data[:, :2]
+Y_train = data[:, 2].astype(int)
+
+```
+
+Ensuite, on crée deux courbes donnant le pourcentages d'erreurs commises en fonction de la profondeur maximale de l'arbre (en laissant les autres paramètres par défaut).
+
+On obtient alors le graphique suivant :
+
+![](TP-arbres/Erreur%20commise%20avec%20le%20crit%C3%A8re%20de%20Gini%20.png){fig-align="center"}
+
+On voit sur le graphique que les erreurs diminuent de manière similaire pour les deux critères pour s'approcher notablement de $0$ lorsque la profondeur maximale de l'arbre atteint $10$. Cependant, en utilisant le critère de Gini, l'erreur commise est légèrement plus importante que celle dans le cas de l'utilisation de l'entropie.
+
+Il faut cependant rester vigilant face à ces erreurs quasi nulles à partir d'une profondeur égale à 10 et très faibles dès lors que la profondeur maximale atteint 8. En effet, l'erreur est ici calculée à partir des données d'apprentissage. Ces données ont dont servi pour ajuster le modèle et pour évaluer son efficacité, cela peut être dangereux car c'est un cas typique de sur-apprentissage. Il faudra alors trouver un moyen d'ajuster ce modèle tout en gardant un biais assez faible et trouver ainsi un compromis entre le sur-apprentissage et le sous-apprentissage du modèle.
+
+Cependant, on remarque sur le graphique que les deux courbes sont très proches, même si nous ne pouvons baser toutes nos conclusions sur ce graphique pour les raisons citées précédemment, nous pouvons conclure quant à la pertinence de l'utilisation d'un classifieur dans notre étude. En effet, les erreurs commises sont très faibles et similaires pour les deux critères utilisés pour l'homogénéité du modèle.
+
+Nous pouvons regarder plus précisément la classification obtenue en utilisant la profondeur qui minimise le pourcentage d'erreurs obtenues avec l'entropie. On utilise pour cela les fonctions `plot_2d`et `frontière`.
+
+```{Python, echo=FALSE}
+
+# Q3 Afficher la classification obtenue en utilisant la profondeur qui minimise le pourcentage d’erreurs obtenues avec l’entropie
+
+# Définir des variables pour suivre la meilleure profondeur et le meilleur score d'entropie
+best_depth_entropy = None
+best_score_entropy = 0  # Initialisation à 0
+
+# Parcourir différentes valeurs de profondeur
+for depth in range(1, dmax + 1):
+    # Créer et ajuster un arbre de décision avec la profondeur actuelle
+    dt_entropy = tree.DecisionTreeClassifier(criterion='entropy', max_depth=depth)
+    dt_entropy.fit(X, Y)
+
+    # Calculer la précision avec le critère d'entropie
+    accuracy = dt_entropy.score(X, Y)
+
+    # Vérification si la précision actuelle est meilleure que la meilleure précision précédente
+    if accuracy > best_score_entropy:
+        best_score_entropy = accuracy
+        best_depth_entropy = depth
+
+# Affichage de la classification obtenue avec la meilleure profondeur
+plt.figure()
+frontiere(lambda x: dt_entropy.predict(x.reshape((1, -1))), X, Y, step=100)
+plt.title("Best frontier with entropy criterion (Depth: {})".format(best_depth_entropy))
+plt.draw()
+print("Best depth with entropy criterion: ", best_depth_entropy)
+print("Best score with entropy criterion: ", best_score_entropy)
+
+
+```
+
+On obtient alors la partition suivante :
+
+![](Rendu%20TP2/graph_Q3.png)
+
+En utilisant une profondeur de 12 on obtient les partitions suivantes. On peut remarquer une hétérogénéité des données qui peut en partie expliquer le faible taux d'erreur que l'on a constaté. Cela peut être une conséquence de la manière dont nos données ont été construites. En effet, elles ont été générées avec la fonction `rand_checkers` de manière artificielle, qui les a disposées dans des quadrillages sur le plan.
+
+On veut à présent exporter un graphique de l'arbre obtenu dans la partie précédente en format pdf. On utilise pour cela la fonction `export_graphviz`du module `tree`.
+
+### 
+
+Afin d'évaluer l'efficacité de notre modèle nous regardons son taux d'erreur pour de nouvelles données générées. Ce seront nos données de test. On crée alors $n = 40 + 40 + 40 + 40$ nouvelles données avec `rand_checkers`. On calcule alors la proportion d'erreurs faites sur cet échantillon de test pour les arbres de décision entraînés précédemment.
+
+```{Python, echo = FALSE}
+# Q5 :  Génération d'une base de test
+# Générer une base de test avec les mêmes paramètres que la base d'entraînement
+data_test = rand_checkers(n1=40, n2=40, n3=40, n4=40, sigma=0.1)
+
+# Extraire les caractéristiques (X_test) et les étiquettes de classe (Y_test) de la base de test
+X_test = data_test[:, :-1]  # Toutes les colonnes sauf la dernière
+Y_test = data_test[:, -1].astype(int)  # La dernière colonne (étiquettes de classe) en tant qu'entiers
+
+dmax = 12
+scores_entropy = np.zeros(dmax)
+scores_gini = np.zeros(dmax)
+
+plt.figure(figsize=(15, 10))
+
+for i in range(dmax):
+    # Créer et ajuster un arbre de décision avec la profondeur actuelle pour le critère d'entropie
+    dt_entropy = tree.DecisionTreeClassifier(criterion='entropy', max_depth=i + 1)
+    dt_entropy.fit(X, Y)
+    
+    # Calculer le score de test avec le critère d'entropie
+    test_accuracy_entropy = dt_entropy.score(X_test, Y_test)
+    scores_entropy[i] = test_accuracy_entropy
+
+    # Créer et ajuster un arbre de décision avec la profondeur actuelle pour le critère de Gini
+    dt_gini = tree.DecisionTreeClassifier(criterion='gini', max_depth=i + 1)
+    dt_gini.fit(X, Y)
+    
+    # Calculer le score de test avec le critère de Gini
+    test_accuracy_gini = dt_gini.score(X_test, Y_test)
+    scores_gini[i] = test_accuracy_gini
+
+# Afficher les scores de test en fonction de la profondeur maximale
+plt.figure()
+plt.plot(range(1, dmax + 1), scores_entropy, label='Entropy Criterion')
+plt.plot(range(1, dmax + 1), scores_gini, label='Gini Criterion')
+plt.xlabel('Max depth')
+plt.ylabel('Accuracy Score')
+plt.title("Testing error")
+plt.legend()
+plt.show()
+
+print("Test scores with entropy criterion: ", scores_entropy)
+print("Test scores with Gini criterion: ", scores_gini)
+
+
+```
+
+On obtient alors le graphique suivant :
+
+![](images/Capture%20d%E2%80%99e%CC%81cran%202023-09-28%20a%CC%80%2007.01.56.png)
+
+De manière similaire à ce qui a été observé précédemment, les erreurs associées aux deux critères évoluent de manière cohérente. Il est notable qu'avec un ensemble de données de taille $n = 160$ (qui est inférieur à $n = 456$), les erreurs diminuent plus rapidement à mesure que la profondeur maximale de l'arbre de décision augmente. Cependant, dès que la profondeur maximale atteint $9$, il devient évident que poursuivre l'augmentation de la profondeur n'apportera que peu ou pas d'amélioration significative en termes de réduction de l'erreur, car l'erreur demeure pratiquement constante à ce stade.
+
+### 
+
+On refait les étapes précédentes pour le dataset `DIGITS`. On commence par diviser ces données en deux groupes avec la fonction `train_test_split`. Cela nous donnera les données d'apprentissage et les données de test.
+
+```{Python, echo = FALSE}
+# Q6. même question avec les données de reconnaissances de texte 'digits'
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+
+# Importer le jeu de données "digits"
+digits = datasets.load_digits()
+
+# Diviser le jeu de données en un ensemble d'entraînement et un ensemble de test
+X_train, X_test, Y_train, Y_test = train_test_split(digits.data, digits.target, test_size=0.2, random_state=42)
+
+dmax = 12
+scores_entropy = np.zeros(dmax)
+scores_gini = np.zeros(dmax)
+
+plt.figure(figsize=(15, 10))
+
+for i in range(dmax):
+    # Créer et ajuster un arbre de décision avec la profondeur actuelle pour le critère d'entropie
+    dt_entropy = DecisionTreeClassifier(criterion='entropy', max_depth=i + 1, random_state=42)
+    dt_entropy.fit(X_train, Y_train)
+    
+    # Calculer le score de test avec le critère d'entropie
+    test_accuracy_entropy = dt_entropy.score(X_test, Y_test)
+    scores_entropy[i] = test_accuracy_entropy
+
+    # Créer et ajuster un arbre de décision avec la profondeur actuelle pour le critère de Gini
+    dt_gini = DecisionTreeClassifier(criterion='gini', max_depth=i + 1, random_state=42)
+    dt_gini.fit(X_train, Y_train)
+    
+    # Calculer le score de test avec le critère de Gini
+    test_accuracy_gini = dt_gini.score(X_test, Y_test)
+    scores_gini[i] = test_accuracy_gini
+
+# Afficher les scores de test en fonction de la profondeur maximale
+plt.figure()
+plt.plot(range(1, dmax + 1), scores_entropy, label='Entropy Criterion')
+plt.plot(range(1, dmax + 1), scores_gini, label='Gini Criterion')
+plt.xlabel('Max depth')
+plt.ylabel('Accuracy Score')
+plt.title("Testing error for Digits Dataset")
+plt.legend()
+plt.show()
+
+print("Test scores with entropy criterion: ", scores_entropy)
+print("Test scores with Gini criterion: ", scores_gini)
+```
+
+On obtient le graphique suivant :
+
+![](images/Capture%20d%E2%80%99e%CC%81cran%202023-09-28%20a%CC%80%2007.06.17.png)
+
+On remarque ici que pour les données d'entraînement, le graphe renseigne une erreur quasi nulle au bout d'une profondeur maximale égale à $8$. Ceci est cohérent avec le travail d'avant.
+
+En pratique, nous ne disposons pas d'un ensemble de test. Il faut diviser nos données en deux parties : un ensemble de test et un ensemble d'apprentissage. Il faut réserver un bon taux de données pour l'apprentissage car le modèle sera d'autant plus précis qu'il a de données pour apprendre. Pour sélectionner un modèle ou un paramètre tout en considérant le plus grand nombre d'exemples possibles pour l'apprentissage, on utilise une sélection par validation croisée.
+
+## 2. METHODES DE CHOIX DE PARAMETRES - SELECTION DE MODELE
+
+#### VALIDATION CROISEE
+
+On utilise la fonction **sklearn.cross_validation.cross_val_score**. Cette fonction sert à évaluer la performance d'un modèle d'arbre de décision à différentes profondeurs en utilisant la validation croisée. On définit pour cela la plage de valeurs de profondeur. Elle effectue une boucle sur les différentes profondeurs et calcule les précisions moyennes. Ensuite **cross_val_score** est utilisée pour calculer les scores de validation croisée avec 5 plis. Elle identifie ainsi la meilleure profondeur en trouvant celle qui donne la précision moyenne la plus élevée (**best_depth**). On affiche alors la meilleure profondeur et la meilleure précision moyenne.
+
+```{Python, echo = FALSE}
+# Q7. estimer la meilleur profondeur avec un cross_val_score
+
+np.random.seed(256)
+
+error_ent = []
+error_gini = []
+dmax = 20
+X = digits.data
+y = digits.target
+for i in range(dmax):
+    dt_entropy = tree.DecisionTreeClassifier(criterion='entropy',
+                                             max_depth=i + 1)
+    accuracy = cross_val_score(dt_entropy, X, y)
+    error_ent.append(1-accuracy.mean())
+    dt_gini = tree.DecisionTreeClassifier(criterion='gini',
+                                          max_depth=i + 1)
+    accuracy2 = cross_val_score(dt_gini, X, y)
+    error_gini.append(1-accuracy2.mean())
+
+plt.figure(figsize=(7, 4))
+plt.plot(error_ent, label="entropy")
+plt.plot(error_gini, label="gini")
+plt.xlabel('Depth')
+plt.ylabel("Error")
+plt.legend()
+plt.title("Error with entropy and gini criterion")
+plt.show()
+
+print(error_ent)
+print(error_gini)
+best_depth = np.argmin(error_ent) + 1
+print(best_depth)
+     
+
+
+```
+
+Après exécution du code nous obtenons que la profondeur optimale est 15 :
+
+![](images/Capture%20d%E2%80%99e%CC%81cran%202023-09-28%20a%CC%80%2007.20.13.png)
+
+En effet, selon les deux critères (entropie et Gini), en affichant le graphique de l'erreur en fonction de la profondeur, nous voyons que $15$ semble être un choix convenable. Cependant, on voit également sur le graphique qu'à partir d'une profondeur de $5$, selon les deux critères, l'erreur est proche de $0$.
+
+### 
+
+On veut dans cette partie afficher la courbe d'apprentissage pour les arbres de décision sur le même jeu de données. Elle nous permettra d'évaluer la performance de l'arbre en fonction de la taille de l'ensemble de données d'apprentissage. Elle donne une estimation de la précision du modèle. On aura alors la courbe de test (learning curve) qui utilise l'ensemble d'entraînement pour construire le modèle puis évalue ce modèle en utilisant ce même ensemble d'entraînement. On aura également la courbe de la validation croisée qui utilise l'ensemble de validation pour évaluer le modèle.
+
+```{Python, echo = FALSE}
+X = digits.data
+y = digits.target
+model = tree.DecisionTreeClassifier(criterion='entropy', max_depth=best_depth)
+
+n_samples, train_scores, test_scores = learning_curve(model, X, y, cv=5)
+
+train_scores_mean = np.mean(train_scores, axis=1)
+train_scores_std = np.std(train_scores, axis=1)
+test_scores_mean = np.mean(test_scores, axis=1)
+test_scores_std = np.std(test_scores, axis=1)
+
+plt.figure()
+plt.title("Learning Curve")
+plt.xlabel("Training Set Size")
+plt.ylabel("Score")
+plt.grid()
+plt.fill_between(n_samples, train_scores_mean - train_scores_std,
+                 train_scores_mean + train_scores_std, alpha=0.1,
+                 color="blue")
+plt.fill_between(n_samples, test_scores_mean - test_scores_std,
+                 test_scores_mean + test_scores_std, alpha=0.1,
+                 color="red")
+plt.plot(n_samples, train_scores_mean, 'o-', color="blue",
+         label="Training Score")
+plt.plot(n_samples, test_scores_mean, 'o-', color="red",
+         label="Cross Validation Score")
+plt.legend()
+plt.show()
+     
+```
+
+![](images/Capture%20d%E2%80%99e%CC%81cran%202023-09-28%20a%CC%80%2007.25.17.png)
+
+La courbe bleue représente le score des données d'entraînement. Cette courbe est celle de l'équation $y = 1$. En effet, le modèle a bien appris sur les données et l'erreur commise est nulle.
+
+La courbe rouge correspond au score des données de la validation croisée. Généralement, la performance du modèle diminue à mesure que la taille de l'ensemble de validation augmente. Ici, ce n'est pas le cas pour la validation croisée. En effet, la performance augmente lorsque la taille de l'ensemble de validation augmente. Cela peut signifier plusieurs choses, comme par exemple un sous-ajustement du modèle. En effet, le modèle n'a pas encore bien appris à partir des données d'entraînement. Ce biais élevé du modèle peut être réduit en augmentant la complexité du modèle ou en fournissant davantage de données d'entraînement afin d'améliorer sa performance.
+
+## 3. CONCLUSION
+
+Pour conclure, nous avons constaté que les deux critères de partitionnement ont des performances similaires, avec des taux d'erreur qui diminuent à mesure que la profondeur maximale de l'arbre augmente. Cependant, nous avons également noté que des taux d'erreur très faibles peuvent résulter d'un sur-apprentissage du modèle aux données d'entraînement, ce qui nécessite une attention particulière pour éviter le sur-ajustement.
+
+La validation croisée nous a permis de sélectionner la meilleure profondeur de l'arbre de décision pour notre modèle, en minimisant les taux d'erreur moyens sur différents plis de validation. Cette approche nous a aidés à déterminer que la profondeur optimale était d'environ 15 pour notre ensemble de données.
+
+Enfin, nous avons tracé des courbes d'apprentissage pour évaluer la performance de notre modèle en fonction de la taille de l'ensemble de données d'apprentissage. Nous avons observé que la performance du modèle n'augmentait pas nécessairement avec l'augmentation de la taille de l'ensemble de validation, ce qui peut indiquer un sous-ajustement du modèle.
+
+En résumé, ce TP nous a permis de comprendre les bases des arbres de décision, les critères de partitionnement, la sélection de modèle par validation croisée, et l'importance de surveiller le sur-ajustement lors de la construction de modèles d'arbres de décision. Ces concepts sont essentiels pour le développement de modèles d'apprentissage automatique efficaces et précis.
+
+\
